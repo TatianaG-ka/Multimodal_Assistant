@@ -1,23 +1,34 @@
-from dotenv import load_dotenv
-load_dotenv()  
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs): return False
+load_dotenv()
+
 import os
 import logging
 import chromadb
 from agents.planning_agent import PlanningAgent
+from tools.seed_vectorstore import seed_vectorstore
 
-def get_collection():
+def ensure_collection():
     path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
     name = os.getenv("VECTORSTORE_NAME", "products")
     client = chromadb.PersistentClient(path=path)
     try:
         col = client.get_collection(name)
+        if col.count() > 0:
+            return col
     except Exception:
-        col = client.create_collection(name)
-    return col
+        pass
+
+    seed_vectorstore(limit_per_feed=3)
+
+    client = chromadb.PersistentClient(path=path)
+    return client.get_collection(name)
 
 if __name__ == "__main__":
     logging.basicConfig(level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")))
-    collection = get_collection()
+    collection = ensure_collection()
     planner = PlanningAgent(collection)
     best = planner.plan(memory=[])
     if best:

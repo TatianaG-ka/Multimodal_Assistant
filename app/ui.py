@@ -1,4 +1,7 @@
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs): return False
 load_dotenv()
 
 import os
@@ -7,17 +10,25 @@ import gradio as gr
 import chromadb
 from agents.planning_agent import PlanningAgent
 
-def get_collection():
+def ensure_collection():
     path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
     name = os.getenv("VECTORSTORE_NAME", "products")
     client = chromadb.PersistentClient(path=path)
     try:
         col = client.get_collection(name)
+        if col.count() > 0:
+            return col
     except Exception:
-        col = client.create_collection(name)
-    return col
+        pass
 
-collection = get_collection()
+    # brak / pusta kolekcja → seed z RSS
+    from tools.seed_vectorstore import seed_vectorstore
+    seed_vectorstore(limit_per_feed=3)
+
+    client = chromadb.PersistentClient(path=path)
+    return client.get_collection(name)
+
+collection = ensure_collection()
 planner = PlanningAgent(collection)
 
 def scan():
@@ -45,3 +56,6 @@ with gr.Blocks() as demo:
     scan_btn.click(fn=scan, outputs=[status, table])
 
 demo.launch()
+
+def main():
+    gr.Interface(...).launch()

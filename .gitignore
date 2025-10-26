@@ -46,12 +46,17 @@ Icon?
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+*.chroma/
+
+# Chroma vectorstore (local DB)
+data/vectorstore/
+*.sqlite3
+*.bin
 
 # Local data/databases (if created locally)
 *.sqlite
 *.sqlite3
 *.db
-data/
 datasets/
 uploads/
 tmp/
@@ -63,7 +68,7 @@ tmp/
 # Environment files (if you are using dotenv locally)
 .env
 .env.*
-!.env.example  # opcjonalnie: szablon bez sekretów
+!.env.example
 
 # IDE 
 # PyCharm / IntelliJ

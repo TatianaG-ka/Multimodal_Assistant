@@ -12,4 +12,7 @@ sentence-transformers
 feedparser
 joblib
 huggingface_hub
+typing_extensions
+
+
 

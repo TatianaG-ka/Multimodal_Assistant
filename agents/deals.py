@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Dict, Self
+from typing import List, Dict
+from typing_extensions import Self
 from bs4 import BeautifulSoup
 import re
 import feedparser
