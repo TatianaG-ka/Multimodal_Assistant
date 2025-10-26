@@ -10,6 +10,13 @@ import chromadb
 from agents.planning_agent import PlanningAgent
 from tools.seed_vectorstore import seed_vectorstore
 
+def ensure_models():
+    rf = os.getenv("RF_MODEL_PATH", "data/models/random_forest_model.pkl")
+    ens = os.getenv("ENSEMBLE_MODEL_PATH", "data/models/ensemble_model.pkl")
+    if not (os.path.exists(rf) and os.path.exists(ens)):
+        from tools.seed_models import seed_models
+        seed_models()
+
 def ensure_collection():
     path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
     name = os.getenv("VECTORSTORE_NAME", "products")
@@ -22,12 +29,12 @@ def ensure_collection():
         pass
 
     seed_vectorstore(limit_per_feed=3)
-
     client = chromadb.PersistentClient(path=path)
     return client.get_collection(name)
 
 if __name__ == "__main__":
     logging.basicConfig(level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")))
+    ensure_models()   
     collection = ensure_collection()
     planner = PlanningAgent(collection)
     best = planner.plan(memory=[])

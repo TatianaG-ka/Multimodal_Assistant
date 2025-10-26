@@ -9,6 +9,7 @@ import pandas as pd
 import gradio as gr
 import chromadb
 from agents.planning_agent import PlanningAgent
+from tools.seed_vectorstore import seed_vectorstore
 
 def ensure_collection():
     path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
@@ -20,18 +21,22 @@ def ensure_collection():
             return col
     except Exception:
         pass
-
-    # brak / pusta kolekcja → seed z RSS
-    from tools.seed_vectorstore import seed_vectorstore
     seed_vectorstore(limit_per_feed=3)
-
     client = chromadb.PersistentClient(path=path)
     return client.get_collection(name)
 
-collection = ensure_collection()
-planner = PlanningAgent(collection)
+_collection = None
+_planner = None
+
+def get_planner():
+    global _collection, _planner
+    if _planner is None:
+        _collection = ensure_collection()
+        _planner = PlanningAgent(_collection)
+    return _planner
 
 def scan():
+    planner = get_planner()
     opp = planner.plan(memory=[])
     status = "OK" if opp else "No deals"
     rows = []
@@ -46,16 +51,20 @@ def scan():
     df = pd.DataFrame(rows, columns=["product_description","price","url","estimate","discount"])
     return status, df
 
-with gr.Blocks() as demo:
-    gr.Markdown("### Multimodal Agent — scan → rank → notify (minimal UI)")
-    with gr.Row():
-        scan_btn = gr.Button("Scan", scale=1)
-        notify_btn = gr.Button("Notify", scale=1, visible=False)  
-    status = gr.Textbox(label="Status")
-    table = gr.Dataframe(headers=["product_description","price","url","estimate","discount"], interactive=False)
-    scan_btn.click(fn=scan, outputs=[status, table])
-
-demo.launch()
+def build_app():
+    with gr.Blocks() as demo:
+        gr.Markdown("### Multimodal Agent — scan → rank → notify (minimal UI)")
+        with gr.Row():
+            scan_btn = gr.Button("Scan", scale=1)
+            notify_btn = gr.Button("Notify", scale=1, visible=False)
+        status = gr.Textbox(label="Status")
+        table = gr.Dataframe(headers=["product_description","price","url","estimate","discount"], interactive=False)
+        scan_btn.click(fn=scan, outputs=[status, table])
+    return demo
 
 def main():
-    gr.Interface(...).launch()
+    demo = build_app()
+    demo.launch()
+
+if __name__ == "__main__":
+    main()
