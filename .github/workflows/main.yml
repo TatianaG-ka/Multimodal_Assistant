@@ -2,19 +2,38 @@ name: Sync to Hugging Face hub
 on:
   push:
     branches: [main]
-
-  # to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           lfs: true
-      - name: Push to hub
+
+      - name: Setup Git + LFS
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git lfs install
+
+      - name: Add HF remote & fetch
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://TatianaGol:$HF_TOKEN@huggingface.co/spaces/TatianaGol/Multimodal_Assistant main
+        run: |
+          git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || true
+          git remote set-url space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant
+          git fetch space main
+
+      - name: Rebase on space/main preferring GitHub (ours)
+        run: |
+          git checkout main
+          git rebase -X ours space/main
+
+      - name: Push to Space
+        run: |
+          git push space main
+
