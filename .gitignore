@@ -80,3 +80,7 @@ tmp/
 Pipfile
 Pipfile.lock
 poetry.lock
+
+
+data/models/
+*.pkl
