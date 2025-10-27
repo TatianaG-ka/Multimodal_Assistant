@@ -81,6 +81,8 @@ Pipfile
 Pipfile.lock
 poetry.lock
 
-
+data/
 data/models/
 *.pkl
+*.bin
+
