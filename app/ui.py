@@ -66,7 +66,7 @@ def build_app():
                 minimum=1,
                 maximum=20,
                 step=1,
-                value=7,
+                value=5,
                 interactive=True
             )
 
