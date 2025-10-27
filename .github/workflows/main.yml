@@ -1,5 +1,4 @@
 name: Sync to Hugging Face hub
-
 on:
   push:
     branches: [main]
@@ -13,26 +12,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          lfs: false
 
-      - name: Setup Git + LFS
+      - name: Setup Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git lfs install --local
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Add HF remote
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || \
+          git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || true
           git remote set-url space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant
-
-      - name: Debug listing before push
-        run: |
-          git rev-parse --abbrev-ref HEAD
-          git ls-files data/models || true
-          ls -la data/models || true
 
       - name: Force-push GitHub main to Space
         run: |
