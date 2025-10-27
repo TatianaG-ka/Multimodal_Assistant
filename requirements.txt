@@ -4,7 +4,8 @@ pandas
 scikit-learn
 tqdm
 openai
-gradio
+gradio>=4.0.0
+numpy
 chromadb
 beautifulsoup4
 modal

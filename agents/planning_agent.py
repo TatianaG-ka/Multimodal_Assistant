@@ -32,7 +32,7 @@ class PlanningAgent(Agent):
             self.log("No offers to evaluate - run ended.")
             return None
 
-        opportunities = [self.run(deal) for deal in selection.deals[:5]]
+        opportunities = [self.run(deal) for deal in selection.deals]
         opportunities.sort(key=lambda opp: opp.discount, reverse=True)
         best = opportunities[0]
 

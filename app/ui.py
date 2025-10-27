@@ -35,31 +35,48 @@ def get_planner():
         _planner = PlanningAgent(_collection)
     return _planner
 
-def scan():
+def scan(limit: int):
     planner = get_planner()
-    opp = planner.plan(memory=[])
-    status = "OK" if opp else "No deals"
-    rows = []
-    if opp:
-        rows.append({
-            "product_description": opp.deal.product_description,
-            "price": opp.deal.price,
-            "url": opp.deal.url,
-            "estimate": opp.estimate,
-            "discount": opp.discount
-        })
-    df = pd.DataFrame(rows, columns=["product_description","price","url","estimate","discount"])
-    return status, df
+    selection = planner.scanner.scan(memory=[])  
+    if not selection or not selection.deals:
+        return "No deals", pd.DataFrame(columns=["product_description", "price", "url", "estimate", "discount"])
+
+    opportunities = [planner.run(deal) for deal in selection.deals[:int(limit)]]
+    opportunities.sort(key=lambda opp: opp.discount, reverse=True)
+
+    rows = [{
+        "product_description": opp.deal.product_description,
+        "price": opp.deal.price,
+        "url": opp.deal.url,
+        "estimate": opp.estimate,
+        "discount": opp.discount
+    } for opp in opportunities]
+
+    df = pd.DataFrame(rows, columns=["product_description", "price", "url", "estimate", "discount"])
+    return "OK", df
+
 
 def build_app():
     with gr.Blocks() as demo:
-        gr.Markdown("### Multimodal Agent — scan → rank → notify (minimal UI)")
+        gr.Markdown("### Multimodal Agent — scan → rank → notify")
         with gr.Row():
             scan_btn = gr.Button("Scan", scale=1)
-            notify_btn = gr.Button("Notify", scale=1, visible=False)
-        status = gr.Textbox(label="Status")
-        table = gr.Dataframe(headers=["product_description","price","url","estimate","discount"], interactive=False)
-        scan_btn.click(fn=scan, outputs=[status, table])
+            limit_slider = gr.Slider(
+                label="Number of deals to process",
+                minimum=1,
+                maximum=20,
+                step=1,
+                value=7,
+                interactive=True
+            )
+
+        status = gr.Textbox(label="Status", interactive=False)
+        table = gr.Dataframe(
+            headers=["product_description", "price", "url", "estimate", "discount"],
+            interactive=False
+        )
+
+        scan_btn.click(fn=scan, inputs=[limit_slider], outputs=[status, table])
     return demo
 
 def main():
