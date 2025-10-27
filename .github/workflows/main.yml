@@ -28,6 +28,12 @@ jobs:
           git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || \
           git remote set-url space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant
 
+      - name: Debug listing before push
+        run: |
+          git rev-parse --abbrev-ref HEAD
+          git ls-files data/models || true
+          ls -la data/models || true
+
       - name: Force-push GitHub main to Space
         run: |
           git fetch origin main
