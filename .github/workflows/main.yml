@@ -1,5 +1,4 @@
 name: Sync to Hugging Face hub
-
 on:
   push:
     branches: [main]
@@ -9,33 +8,29 @@ jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repo (shallow)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          lfs: true
+          fetch-depth: 1
+          lfs: false
 
-      - name: Setup Git + LFS
+      - name: Setup Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git lfs install --local
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Add HF remote
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || \
+          git remote add space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant || true
           git remote set-url space https://TatianaGol:${HF_TOKEN}@huggingface.co/spaces/TatianaGol/Multimodal_Assistant
 
-      - name: Debug listing before push
+      # >>> KLUCZOWY KROK – tworzymy gałąź bez historii (orphan)
+      - name: Create orphan snapshot and push to Space main
         run: |
-          git rev-parse --abbrev-ref HEAD
-          git ls-files data/models || true
-          ls -la data/models || true
-
-      - name: Force-push GitHub main to Space
-        run: |
-          git fetch origin main
-          git checkout -B main origin/main
-          git push space main --force
+          git checkout --orphan space-deploy
+          git rm -r --cached . >/dev/null 2>&1 || true
+          git add -A
+          git commit -m "Deploy snapshot from GitHub main (no history)"
+          git push -f space HEAD:main
