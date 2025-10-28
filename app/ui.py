@@ -5,23 +5,34 @@ except ImportError:
 load_dotenv()
 
 import os
+import pathlib
 import pandas as pd
 import gradio as gr
 import chromadb
 from agents.planning_agent import PlanningAgent
 from tools.seed_vectorstore import seed_vectorstore
 
+DEF_PERSIST = os.getenv("PERSIST_DIRECTORY", "/tmp/chroma")
+DEF_COLL = os.getenv("VECTORSTORE_NAME", "products")
+
 def ensure_collection():
-    path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
-    name = os.getenv("VECTORSTORE_NAME", "products")
+    path = os.getenv("VECTORSTORE_PATH", DEF_PERSIST)
+    name = os.getenv("VECTORSTORE_NAME", DEF_COLL)
+
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
     client = chromadb.PersistentClient(path=path)
     try:
         col = client.get_collection(name)
-        if col.count() > 0:
-            return col
+        try:
+            if col.count() > 0:
+                return col
+        except Exception:
+            pass
     except Exception:
         pass
     seed_vectorstore(limit_per_feed=3)
+
     client = chromadb.PersistentClient(path=path)
     return client.get_collection(name)
 
@@ -36,24 +47,33 @@ def get_planner():
     return _planner
 
 def scan(limit: int):
-    planner = get_planner()
-    selection = planner.scanner.scan(memory=[])  
-    if not selection or not selection.deals:
-        return "No deals", pd.DataFrame(columns=["product_description", "price", "url", "estimate", "discount"])
+ 
+    try:
+        planner = get_planner()
+        selection = planner.scanner.scan(memory=[])
+        if not selection or not selection.deals:
+            empty = pd.DataFrame(columns=["product_description", "price", "url", "estimate", "discount"])
+            return "No deals", empty
 
-    opportunities = [planner.run(deal) for deal in selection.deals[:int(limit)]]
-    opportunities.sort(key=lambda opp: opp.discount, reverse=True)
+        n = max(1, int(limit))
+        opportunities = [planner.run(deal) for deal in selection.deals[:n]]
+        opportunities.sort(key=lambda opp: opp.discount, reverse=True)
 
-    rows = [{
-        "product_description": opp.deal.product_description,
-        "price": opp.deal.price,
-        "url": opp.deal.url,
-        "estimate": opp.estimate,
-        "discount": opp.discount
-    } for opp in opportunities]
+        rows = [{
+            "product_description": opp.deal.product_description,
+            "price": opp.deal.price,
+            "url": opp.deal.url,
+            "estimate": opp.estimate,
+            "discount": opp.discount
+        } for opp in opportunities]
 
-    df = pd.DataFrame(rows, columns=["product_description", "price", "url", "estimate", "discount"])
-    return "OK", df
+        df = pd.DataFrame(rows, columns=["product_description", "price", "url", "estimate", "discount"])
+        return "OK", df
+
+    except Exception as e:
+        msg = f"Error: {type(e).__name__}: {e}"
+        empty = pd.DataFrame(columns=["product_description", "price", "url", "estimate", "discount"])
+        return msg, empty
 
 
 def build_app():

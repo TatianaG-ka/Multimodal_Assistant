@@ -28,7 +28,12 @@ print("[BOOT] MODELS_LOCAL_DIR:", os.environ["MODELS_LOCAL_DIR"])
 
 
 from dotenv import load_dotenv; load_dotenv()
-import tools.seed_models
+
+try:
+    import tools.seed_models  
+except Exception as e:
+    print("[BOOT] seed_models import skipped:", e)
+
 from app.ui import ensure_collection, build_app
 
 ensure_collection()
