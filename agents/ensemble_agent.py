@@ -30,7 +30,6 @@ class EnsembleAgent(Agent):
         frontier = self.frontier.price(description)
         random_forest = self.random_forest.price(description)
 
-        
         if self.model:
             X = pd.DataFrame({
                 'Specialist': [specialist],
