@@ -19,22 +19,19 @@ def ensure_collection():
     path = os.getenv("VECTORSTORE_PATH", DEF_PERSIST)
     name = os.getenv("VECTORSTORE_NAME", DEF_COLL)
 
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)  
     client = chromadb.PersistentClient(path=path)
+    col = client.get_or_create_collection(name=name) 
+
     try:
-        col = client.get_collection(name)
-        try:
-            if col.count() > 0:
-                return col
-        except Exception:
-            pass
+        if col.count() == 0:
+            seed_vectorstore(limit_per_feed=3, path=path, name=name, reset=False)
+            col = client.get_or_create_collection(name=name)
     except Exception:
-        pass
-    seed_vectorstore(limit_per_feed=3)
+        seed_vectorstore(limit_per_feed=3, path=path, name=name, reset=False)
+        col = client.get_or_create_collection(name=name)
 
-    client = chromadb.PersistentClient(path=path)
-    return client.get_collection(name)
+    return col
 
 _collection = None
 _planner = None
