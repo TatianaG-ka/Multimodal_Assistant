@@ -51,13 +51,13 @@ Deals:
 
     def __init__(self):
         self.log("Scanner Agent is initializing")
-        self.openai = OpenAI()
+        # Użyj LLM tylko, gdy jest włączony i dostępny
         env_flag = os.getenv("SCANNER_USE_LLM", "false").lower() == "true"
         self.use_llm = bool(env_flag and OPENAI_AVAILABLE)
         self.openai = _openai_client if self.use_llm else None
         self.log(f"Scanner Agent is ready (USE_LLM={self.use_llm})")
 
-     def fetch_deals(self, memory) -> List[ScrapedDeal]:
+    def fetch_deals(self, memory) -> List[ScrapedDeal]:
         self.log("Scanner Agent is about to fetch deals from RSS feed")
         seen_urls = {opp.deal.url for opp in memory}
         scraped = ScrapedDeal.fetch(limit_per_feed=3, fetch_page=False)
@@ -76,18 +76,21 @@ Deals:
         m = re.search(r"\$?\s*([0-9]+(?:\.[0-9]{1,2})?)", text)
         if m:
             return float(m.group(1))
-        return 99.0 
+        return 99.0  # awaryjny fallback
 
     def scan(self, memory: List[str] = []) -> Optional[DealSelection]:
         scraped = self.fetch_deals(memory)
         if not scraped:
             return None
 
+        # --- tryb bez LLM (offline) ---
         if not self.use_llm or self.openai is None:
             deals = [Deal(product_description=s.title, price=self._heuristic_price(s), url=s.url)
                      for s in scraped[:5]]
             return DealSelection(deals=deals)
- 
+        # --------------------------------
+
+        # --- tryb z LLM (jeśli jawnie włączysz i podasz klucz) ---
         try:
             user_prompt = self.make_user_prompt(scraped)
             self.log("Scanner Agent is calling OpenAI using Structured Output")
