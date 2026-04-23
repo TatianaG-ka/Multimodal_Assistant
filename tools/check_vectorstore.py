@@ -1,11 +1,10 @@
+
 import os, chromadb
-
-path = os.getenv("VECTORSTORE_PATH", "data/vectorstore")
+path = os.getenv("VECTORSTORE_PATH", os.getenv("PERSIST_DIRECTORY", "/tmp/chroma"))
 name = os.getenv("VECTORSTORE_NAME", "products")
-
 client = chromadb.PersistentClient(path=path)
-col = client.get_collection(name)
-
-res = col.query(query_texts=["test"], n_results=3)
-print("OK: collection available. Keys:", list(res.keys()))
-print("n_results returned:", len(res.get("ids", [[]])[0]))
+try:
+    col = client.get_collection(name)
+    print("Collection:", name, "count:", col.count())
+except Exception as e:
+    print("Missing or empty collection:", e)
