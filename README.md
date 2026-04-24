@@ -84,12 +84,16 @@ portfolio release.
    detectors for common jailbreak patterns, and an explicit system-prompt
    instruction treating scraped content as data, not instructions
    (`scanner_agent.py:11-38`). Not present in the course template.
-3. **Honest ML refactor of the ensemble** — removed the original 7th agent
-   (a RandomForest meta-learner trained on `np.random.rand` synthetic noise
-   from the course's seed-models notebook) and rewrote the ensemble as a
-   transparent `0.6·Frontier + 0.4·Specialist` weighted fusion. Rationale is
-   documented in `ensemble_agent.py:1-7`; an ML meta-learner trained on a
-   real labeled dataset is tracked as a v0.2 roadmap item.
+3. **Honest ensemble refactor from 3-agent to 2-agent** — the course's
+   ensemble stacks `SpecialistAgent + FrontierAgent + NeuralNetworkAgent`
+   through a `Preprocessor`, with weights `0.8·Frontier + 0.1·Specialist +
+   0.1·NeuralNetwork`. An earlier revision of this project replaced the
+   NeuralNetwork with a RandomForest meta-learner of my own; it was trained
+   on synthetic noise and added no real signal, so I removed the meta-learner
+   experiment in favor of a transparent `0.6·Frontier + 0.4·Specialist`
+   weighted fusion. Rationale is documented in `ensemble_agent.py:1-7`; an
+   ML meta-learner trained on a real labeled dataset is tracked as a v0.2
+   roadmap item.
 4. **Twilio SMS fallback + defensive messaging** — extended the course's
    single-channel Pushover integration with a Twilio SMS channel, graceful
    degradation on missing credentials, an import guard for the optional
