@@ -1,26 +1,41 @@
 """Shared fixtures for multimodal-assistant tests.
 
-Two non-obvious choices live here:
+Three non-obvious choices live here:
 
-1. SentenceTransformer is patched at module-import time for FrontierAgent.
-   The real class downloads ~90MB of weights on first instantiation and
-   needs network — both unacceptable in unit tests. The stub returns a
-   deterministic 1-d vector so cosine math still works downstream.
+1. `sentence_transformers` is pre-stubbed in `sys.modules` BEFORE any
+   `agents.*` module is imported. Without this, importing
+   `agents.frontier_agent` triggers a real ~600 MB package install on
+   CI. The autouse fixture below additionally swaps the symbol used
+   inside FrontierAgent for our deterministic stub.
 
-2. ScannerAgent has no constructor injection for its OpenAI client, so
+2. SentenceTransformer's stub returns numpy arrays (not lists) because
+   FrontierAgent calls `.astype(float).tolist()` on the result; a list
+   silently raises AttributeError and the RAG path goes dead.
+
+3. ScannerAgent has no constructor injection for its OpenAI client, so
    tests build the agent and then assign `.openai` directly. This is
    intentional: production code uses module-level `get_llm_clients()`
    rather than DI, and we test what's actually shipped.
 """
 
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-from agents.deals import Deal, DealSelection, Opportunity, ScrapedDeal
+# Pre-stub sentence_transformers BEFORE any `agents.*` import so CI does
+# not need to install the 600 MB package just to satisfy a top-level
+# `from sentence_transformers import SentenceTransformer` in frontier_agent.
+# The autouse fixture later replaces the symbol with our typed stub class.
+if "sentence_transformers" not in sys.modules:
+    _st_stub = ModuleType("sentence_transformers")
+    _st_stub.SentenceTransformer = MagicMock(name="UnusedSentenceTransformerStub")
+    sys.modules["sentence_transformers"] = _st_stub
+
+from agents.deals import Deal, DealSelection, Opportunity, ScrapedDeal  # noqa: E402
 
 
 @pytest.fixture
