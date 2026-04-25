@@ -24,12 +24,20 @@ jobs:
         # We install only what tests touch, not the full Space runtime
         # (chromadb / sentence-transformers pull ~600 MB and add ~3 min
         # to CI for zero test signal — they are stubbed in conftest).
+        # Version specifiers are quoted because YAML's `run: |` is bash
+        # and `>` would otherwise be parsed as stdout redirect.
         run: |
           pip install --upgrade pip
-          pip install pytest>=8.0 pytest-mock>=3.12 pydantic>=2.7.0 \
-                       openai>=1.30.0 requests>=2.31.0 \
-                       beautifulsoup4>=4.12.3 feedparser>=6.0.11 \
-                       typing-extensions>=4.9.0
+          pip install \
+            "pytest>=8.0" \
+            "pytest-mock>=3.12" \
+            "pydantic>=2.7.0" \
+            "openai>=1.30.0" \
+            "requests>=2.31.0" \
+            "beautifulsoup4>=4.12.3" \
+            "feedparser>=6.0.11" \
+            "typing-extensions>=4.9.0" \
+            "numpy>=1.26.0"
 
       - name: Run pytest
         run: pytest
