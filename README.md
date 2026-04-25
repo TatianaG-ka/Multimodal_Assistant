@@ -24,7 +24,7 @@ API via a per-agent toggle.
 ```mermaid
 flowchart TD
     RSS[("RSS feeds<br/>dealnews.com · 5 feeds")]
-    Scanner["<b>ScannerAgent</b><br/>gpt-4o-mini (Structured Output)<br/>+ prompt injection defense (3-layer)"]
+    Scanner["<b>ScannerAgent</b><br/>gpt-4o-mini (Structured Output)<br/>+ untrusted-input handling (length cap + system-prompt boundary)"]
     Planning["<b>PlanningAgent</b><br/>orchestrator · no LLM<br/>DEAL_THRESHOLD = $50"]
 
     subgraph Ensemble["<b>EnsembleAgent</b> · weighted fusion (0.6·Frontier + 0.4·Specialist)"]
@@ -79,11 +79,16 @@ portfolio release.
    client, heuristic fallback inside each agent so the whole pipeline runs
    without API keys for local demos and free-tier deployments. The course
    capstone is online-only.
-2. **Prompt injection defense in `ScannerAgent`** — 3-layer mitigation over
-   untrusted scraped RSS content: length cap on ingested text, 5 regex
-   detectors for common jailbreak patterns, and an explicit system-prompt
-   instruction treating scraped content as data, not instructions
-   (`scanner_agent.py:11-38`). Not present in the course template.
+2. **Untrusted-input handling in `ScannerAgent`** — RSS content from
+   third-party deal sites is treated as data, not instructions: the
+   user-prompt section labels the scraped block as untrusted, the
+   system prompt forbids following instructions found inside it, and a
+   per-field length cap bounds token cost and attack surface
+   (`scanner_agent.py:11-38`). Regex blacklists for jailbreak phrases
+   were deliberately omitted — trivially bypassed (homoglyphs, base64,
+   language switches) and give false confidence; the model-layer
+   separation is what actually constrains the attacker. Not present in
+   the course template.
 3. **Honest ensemble refactor from 3-agent to 2-agent** — the course's
    ensemble stacks `SpecialistAgent + FrontierAgent + NeuralNetworkAgent`
    through a `Preprocessor`, with weights `0.8·Frontier + 0.1·Specialist +

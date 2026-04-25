@@ -13,29 +13,23 @@ from .deals import Deal, DealSelection, ScrapedDeal
 # payloads both blow up token cost and widen the prompt-injection surface.
 _MAX_FIELD_CHARS = 2000
 
-# Strings matching these patterns are stripped from scraped content before
-# they are embedded in the user prompt. This is a best-effort prompt-injection
-# defense: real hardening still relies on separating user-controlled text from
-# instructions at the model layer.
-_INJECTION_PATTERNS = [
-    re.compile(r"(?i)ignore (?:all |the |previous |prior )?(?:instructions|rules|system prompt)"),
-    re.compile(r"(?i)disregard (?:the |all )?(?:above|previous|prior|instructions)"),
-    re.compile(r"(?i)you are now"),
-    re.compile(r"(?i)system\s*:"),
-    re.compile(r"(?i)\bprompt\s+injection\b"),
-]
-
 _LLM_ERRORS = (APIError, APIConnectionError, APITimeoutError, ValueError)
 
 
 def _sanitize(text: str) -> str:
-    """Strip obvious prompt-injection payloads and cap length."""
+    """Cap untrusted scraped text to a fixed character budget.
+
+    Real prompt-injection defense lives at the model boundary, not in
+    string filters: the system prompt instructs the model to treat the
+    deals block as untrusted data and to ignore instructions found
+    inside it. Regex blacklists for jailbreak phrases ("ignore previous
+    instructions" etc.) are deliberately not used here — they are
+    trivially bypassed (homoglyphs, base64, language switches) and
+    create a false sense of safety without changing the threat model.
+    """
     if not text:
         return ""
-    cleaned = text
-    for pat in _INJECTION_PATTERNS:
-        cleaned = pat.sub("[filtered]", cleaned)
-    return cleaned[:_MAX_FIELD_CHARS]
+    return text[:_MAX_FIELD_CHARS]
 
 
 def _describe_safely(s: ScrapedDeal) -> str:
