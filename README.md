@@ -13,6 +13,8 @@ short_description: Multimodal Assistant
 
 # Multimodal Assistant (Offline/Online Switch)
 
+[![CI](https://github.com/TatianaG-ka/Multimodal_Assistant/actions/workflows/main.yml/badge.svg)](https://github.com/TatianaG-ka/Multimodal_Assistant/actions/workflows/main.yml)
+
 Autonomous multi-agent deal-hunting pipeline: scrapes product deal RSS feeds,
 filters opportunities with a scanner, estimates a fair price through an
 ensemble of two pricing agents, and alerts the user when the discount crosses
@@ -111,6 +113,30 @@ portfolio release.
    (`app/ui.py:28-38`), and env-driven feature flags so the free-tier Space
    runs in offline/heuristic mode without secrets. The course demos run
    locally.
+
+## Tests
+
+11 unit tests covering the four orchestration paths most likely to silently
+break the pipeline in production:
+
+| Module | What is locked down |
+|---|---|
+| `ScannerAgent` | URL dedupe vs prior alerts, heuristic fallback when `USE_LLM=false`, recovery when OpenAI raises `APIError` |
+| `FrontierAgent` | per-call similars cache (avoids double Chroma + double embed), mean-of-RAG fallback when LLM disabled |
+| `PlanningAgent` | empty-selection short-circuit (no wasted LLM calls), strict `> threshold` alert gate |
+| `EnsembleAgent` | weighted fusion math (0.6·Frontier + 0.4·Specialist), graceful degradation when one estimator fails, total-failure → `0.0` |
+
+All tests are pure unit tests — Chroma collection is mocked, OpenAI clients
+are mocked, `SentenceTransformer` is stubbed at module-import time so no
+~90 MB embedding model is downloaded during test runs.
+
+```bash
+pip install pytest pytest-mock
+pytest                           # 11 passed in ~7s
+```
+
+CI runs the suite on every push and PR; the HF Space sync only fires after
+tests pass green (see `.github/workflows/main.yml`).
 
 ## Quickstart
 ```bash

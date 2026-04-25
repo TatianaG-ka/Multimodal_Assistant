@@ -11,3 +11,8 @@ pandas>=2.2.2
 python-dotenv>=1.0.1
 twilio>=9.0.0
 typing-extensions>=4.9.0
+
+# Test-only (kept here so the same requirements.txt boots HF Space and CI;
+# pytest is small and harmless at runtime).
+pytest>=8.0
+pytest-mock>=3.12

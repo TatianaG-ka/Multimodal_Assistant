@@ -1,12 +1,45 @@
-name: Sync to Hugging Face hub
+name: CI
+
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install test dependencies
+        # We install only what tests touch, not the full Space runtime
+        # (chromadb / sentence-transformers pull ~600 MB and add ~3 min
+        # to CI for zero test signal — they are stubbed in conftest).
+        run: |
+          pip install --upgrade pip
+          pip install pytest>=8.0 pytest-mock>=3.12 pydantic>=2.7.0 \
+                       openai>=1.30.0 requests>=2.31.0 \
+                       beautifulsoup4>=4.12.3 feedparser>=6.0.11 \
+                       typing-extensions>=4.9.0
+
+      - name: Run pytest
+        run: pytest
+
   sync-to-hub:
     runs-on: ubuntu-latest
+    # Tests must pass before we push to the Hugging Face Space — otherwise
+    # the Space rebuilds on broken code and the demo URL goes down.
+    needs: tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repo (shallow)
         uses: actions/checkout@v4

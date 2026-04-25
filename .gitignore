@@ -70,11 +70,13 @@ tmp/
 .env.*
 !.env.example
 
-# IDE 
+# IDE
 # PyCharm / IntelliJ
 .idea/
 # VS Code
 .vscode/
+# Claude Code working dir (commands/hooks/skills/worktrees — local config only)
+.claude/
 
 # Other package managers (if you don't use one)
 Pipfile
