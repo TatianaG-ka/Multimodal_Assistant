@@ -21,6 +21,13 @@ ensemble of two pricing agents, and alerts the user when the discount crosses
 a threshold. Runs fully offline on heuristics or online against the OpenAI
 API via a per-agent toggle.
 
+The pipeline is composed of **6 coordinated components — 3 LLM agents
+(Scanner, Specialist, Frontier) plus 3 orchestrators (Planning, Ensemble
+weighted fusion, Messaging)**. The same architecture is domain-agnostic:
+multi-source ingest → multi-agent estimate → threshold alert applies just as
+well to fraud detection, dynamic pricing, or SecOps anomaly triage — deals
+are chosen as the demo domain because results are verifiable in seconds.
+
 ## Architecture
 
 ```mermaid
@@ -35,18 +42,22 @@ flowchart TD
         Frontier["<b>FrontierAgent</b><br/>gpt-4o-mini + MiniLM<br/>+ ChromaDB (RAG)"]
     end
 
-    Messaging["<b>MessagingAgent</b><br/>Pushover push + Twilio SMS"]
-    Alert(["Alert sent"])
+    Messaging["<b>MessagingAgent</b><br/>channel-agnostic<br/>(Pushover · Twilio · in-UI panel)"]
+    UIPanel(["🔔 In-UI Alert Panel<br/>(Gradio table)"])
+    Pushover(["Pushover push"])
+    Twilio(["Twilio SMS"])
 
     RSS --> Scanner
     Scanner -->|DealSelection| Planning
     Planning -->|Deal for each| Ensemble
     Ensemble -->|weighted estimate| Planning
     Planning -->|Opportunity<br/>if discount > $50| Messaging
-    Messaging --> Alert
+    Messaging --> UIPanel
+    Messaging -.optional in prod.-> Pushover
+    Messaging -.optional in prod.-> Twilio
 
-    RF["v0.2 roadmap<br/>RandomForest meta-learner<br/>removed 2026-04-22<br/>(synthetic noise · no signal)"]
-    Ensemble -.historical.- RF
+    RF["v0.2 roadmap<br/>ML meta-learner<br/>requires labeled dataset"]
+    Ensemble -.future.- RF
 
     style Scanner fill:#e0f7fa,stroke:#00838f,stroke-width:2px
     style Planning fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
@@ -55,7 +66,9 @@ flowchart TD
     style Frontier fill:#bbdefb,stroke:#1565c0,stroke-width:2px
     style Messaging fill:#e0f7fa,stroke:#00838f,stroke-width:2px
     style RSS fill:#fafafa,stroke:#616161
-    style Alert fill:#f1f8e9,stroke:#558b2f
+    style UIPanel fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    style Pushover fill:#fafafa,stroke:#9e9e9e
+    style Twilio fill:#fafafa,stroke:#9e9e9e
     style RF fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
 ```
 
@@ -63,12 +76,12 @@ flowchart TD
 
 This project started as my capstone from **Ed Donner's
 [LLM Engineering course](https://github.com/ed-donner/llm_engineering)**
-(Week 8, *Project 8 — Autonomous multi-agent deal-spotter*). The 6-agent
-architecture (Planning → Scanner → Ensemble[Frontier + Specialist] → Messaging)
-and the Modal-based fine-tune serving file (`pricer_service2.py`) are adapted
-from the course template — see the header comment in `pricer_service2.py` and
-the `HF_USER = "ed-donner"` reference that pins the serverless model revision
-to the course instructor's Hugging Face run.
+(Week 8, *Project 8 — Autonomous multi-agent deal-spotter*). The
+6-component scaffold (Planning → Scanner → Ensemble[Frontier + Specialist] →
+Messaging) and the Modal-based fine-tune serving file (`pricer_service2.py`)
+are adapted from the course template — see the header comment in
+`pricer_service2.py` and the `HF_USER = "ed-donner"` reference that pins the
+serverless model revision to the course instructor's Hugging Face run.
 
 I kept the course's agent scaffolding so the pipeline matches the original
 teaching material, and built out the pieces below on top of it for this
@@ -91,16 +104,19 @@ portfolio release.
    language switches) and give false confidence; the model-layer
    separation is what actually constrains the attacker. Not present in
    the course template.
-3. **Honest ensemble refactor from 3-agent to 2-agent** — the course's
-   ensemble stacks `SpecialistAgent + FrontierAgent + NeuralNetworkAgent`
-   through a `Preprocessor`, with weights `0.8·Frontier + 0.1·Specialist +
-   0.1·NeuralNetwork`. An earlier revision of this project replaced the
-   NeuralNetwork with a RandomForest meta-learner of my own; it was trained
-   on synthetic noise and added no real signal, so I removed the meta-learner
-   experiment in favor of a transparent `0.6·Frontier + 0.4·Specialist`
-   weighted fusion. Rationale is documented in `ensemble_agent.py:1-7`; an
-   ML meta-learner trained on a real labeled dataset is tracked as a v0.2
-   roadmap item.
+3. **Transparent weighted fusion instead of a black-box meta-learner** —
+   the course's ensemble stacks `SpecialistAgent + FrontierAgent +
+   NeuralNetworkAgent` through a `Preprocessor`, with weights `0.8·Frontier +
+   0.1·Specialist + 0.1·NeuralNetwork`. The NeuralNetwork branch was a
+   third estimator with no real labeled training data behind it, so an
+   earlier revision of this project replaced it with a RandomForest of my
+   own — also trained on synthetic noise. I removed the meta-learner
+   experiment entirely in favor of an explicit `0.6·Frontier +
+   0.4·Specialist` weighted fusion: without a labeled (description, true
+   price) dataset, any meta-learner is fitting noise; transparent weights
+   are honest about what the system actually knows. Rationale lives in
+   `ensemble_agent.py:1-7`. A real ML meta-learner backed by a labeled
+   dataset is tracked as a v0.2 roadmap item.
 4. **Twilio SMS fallback + defensive messaging** — extended the course's
    single-channel Pushover integration with a Twilio SMS channel, graceful
    degradation on missing credentials, an import guard for the optional
@@ -113,6 +129,15 @@ portfolio release.
    (`app/ui.py:28-38`), and env-driven feature flags so the free-tier Space
    runs in offline/heuristic mode without secrets. The course demos run
    locally.
+6. **In-UI Alert Panel + per-scan cost estimate** — the Gradio app renders
+   two tables (all evaluated deals + the subset above the `$50` discount
+   threshold) and the status bar shows an estimated per-scan cost in USD
+   for online mode (e.g. `est. ~$0.0014 (7 LLM calls @ gpt-4o-mini)`). The
+   Alert Panel surfaces what `MessagingAgent` would push to Pushover /
+   Twilio in production — without requiring an external service or
+   recruiter-side credentials. Decision logic (when to alert) is kept
+   separate from channel (where to alert) so the same opportunity stream
+   feeds both the in-UI panel and the production SMS / push path.
 
 ## Tests
 
