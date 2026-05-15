@@ -75,8 +75,26 @@ tmp/
 .idea/
 # VS Code
 .vscode/
-# Claude Code working dir (commands/hooks/skills/worktrees — local config only)
+
+# ============================================
+# Claude Code / AI tooling (PRIVATE — never push)
+# ============================================
 .claude/
+CLAUDE.md
+MEMORY.md
+
+# ============================================
+# Planning docs (local-only sibling folder; defense-in-depth glob)
+# ============================================
+STRATEGIA_*.md
+PLAN_*.md
+JOURNAL.md
+SECURITY_AUDIT.md
+PLAN_REVIEW_REPORT.md
+SESSION_HANDOFF_*.md
+INTERVIEW_QA.md
+dev/
+_PLANNING_*/
 
 # Other package managers (if you don't use one)
 Pipfile
